@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calculator Coin — iPhone Calc Theme</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== iPhone Calculator color system ===== */
+  :root{
+    --bg:#000000; --panel:#1c1c1d; --display:#505050; --text:#ffffff; --muted:#b9b9ba;
+    --key-num:#333333; --key-sec:#a5a5a5; --key-func:#ff9500; --key-border:#000000;
+    --pill-bg:#2a2a2b; --pill-border:#3a3a3c;
+    --line-up:#49ffa2; --line-down:#ff86a0;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"IBM Plex Mono", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    display:grid; place-items:start; padding:0 16px 24px;
+  }
+  .wrap{width:min(1100px,96vw); margin:84px auto 0;}
+
+  /* Top Banner */
+  .banner{
+    position:fixed; inset:0 0 auto 0; height:64px; z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, rgba(0,0,0,.95), rgba(0,0,0,.75));
+    border-bottom:1px solid #121212; backdrop-filter: blur(6px);
+  }
+  .bwrap{width:min(1100px,96vw); display:flex; align-items:center; gap:12px}
+  .badge{font-weight:800; letter-spacing:.3px; color:#000; background:linear-gradient(135deg,#ffd699,#ff9500); padding:10px 14px; border-radius:999px; box-shadow:var(--shadow)}
+  .title{font-weight:700}
+  .spacer{flex:1}
+  .bbtn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 14px; border-radius:24px; text-decoration:none; font-weight:700; border:1px solid #2c2c2d; color:#fff; background:#2c2c2d; transition:transform .05s ease, filter .15s ease, background .15s ease;}
+  .bbtn.primary{background:var(--key-func); border-color:#c56f00; color:#000; font-weight:800}
+  .bbtn:hover{filter:brightness(1.05)} .bbtn:active{transform:translateY(1px)}
+
+  /* Header pills */
+  .topbar{display:flex; align-items:center; gap:12px; margin:18px 0}
+  .pill{background:var(--pill-bg); border:1px solid var(--pill-border); color:#e7e7e8; padding:10px 12px; border-radius:999px}
+
+  /* Layout */
+  .grid{display:grid; grid-template-columns:1.15fr .85fr; gap:18px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+
+  /* Calculator Card */
+  .calc{background:var(--panel); border:1px solid #111; border-radius:var(--radius); box-shadow:var(--shadow); padding:18px}
+  .screen{position:relative; height:260px; border-radius:14px; overflow:hidden; background:var(--display); border:1px solid #000;}
+  .lcdtop{position:relative; z-index:1; display:flex; justify-content:space-between; font-size:12px; color:#fff; padding:8px 12px; opacity:.9}
+  .lcdbar{position:relative; z-index:1; display:flex; gap:8px; align-items:center; padding:0 12px 6px; color:#fff; opacity:.9}
+  .lcdbar .dot{width:8px; height:8px; border-radius:50%; background:#6bd17e}
+  canvas#lcd{position:absolute; inset:0; z-index:2; pointer-events:none}
+
+  /* Keys */
+  .keys{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:16px}
+  .key{border:none; border-radius:999px; padding:14px 10px; height:48px; cursor:pointer; font-weight:700; color:#fff; box-shadow:inset 0 0 0 1px var(--key-border);}
+  .key.num{ background:var(--key-num) }
+  .key.sec{ background:var(--key-sec); color:#000 }
+  .key.func{ background:var(--key-func); color:#000; font-weight:800 }
+
+  /* Side */
+  .side{background:var(--panel); border:1px solid #111; border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; display:grid; gap:14px; align-content:start}
+  .h{font-size:13px; color:var(--muted)}
+  .note{font-size:12px; color:var(--muted)}
+  .ledger{display:grid; gap:8px; max-height:260px; overflow:auto}
+  .rowx{display:grid; grid-template-columns:auto 1fr auto; gap:10px; padding:10px; border-radius:12px; background:#2a2a2b; color:#f3f3f4; border:1px solid #1b1b1c}
+</style>
+</head>
+<body>
+
+  <!-- Top Banner -->
+  <header class="banner">
+    <div class="bwrap">
+      <div class="badge">SFMC</div>
+      <div class="title">Safe For Math Class</div>
+      <div class="spacer"></div>
+      <a id="twLink" class="bbtn" target="_blank" rel="noopener">Twitter</a>
+      <a id="pfTop"  class="bbtn primary" target="_blank" rel="noopener">Pump.fun</a>
+      <!-- (If you later re-add more buttons, IDs can be jupBuyTop/jupSellTop/rayTop) -->
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="pill" id="pairPill">Pair: —</div>
+      <div class="pill" id="pricePill">Price: —</div>
+      <div class="pill" id="trendPill">Trend: —</div>
+    </div>
+
+    <div class="grid">
+      <!-- Calculator area -->
+      <section class="calc">
+        <div class="screen">
+          <div class="lcdtop">
+            <div id="lcdLeft">MODE:LINE  TF:1m  2ND:OFF</div>
+            <div id="lcdRight">PX: — | Δ: —</div>
+          </div>
+          <div class="lcdbar">
+            <div class="dot"></div>
+            <div class="legend" id="legend">Loading history…</div>
+          </div>
+          <canvas id="lcd"></canvas>
+        </div>
+
+        <!-- iPhone-styled keys -->
+        <div class="keys" id="keys">
+          <button class="key sec"  data-k="2ND">2ND</button>
+          <button class="key num"  data-k="LINE" disabled>LINE</button>
+          <button class="key func" data-k="CLEAR">CLEAR</button>
+          <button class="key func" data-k="ENTER">ENTER</button>
+          <button class="key func" data-k="BUY">BUY</button>
+          <button class="key func" data-k="SELL">SELL</button>
+          <button class="key num"  data-k="TF1">TF 1m</button>
+          <button class="key num"  data-k="TF5">TF 5m</button>
+          <button class="key num"  data-k="TF15">TF 15m</button>
+          <button class="key sec"  data-k="USD">USD</button>
+          <button class="key sec"  data-k="SOL">SOL</button>
+          <button class="key num"  data-k="N/A" disabled></button>
+          <button class="key num"  data-k="N/A" disabled></button>
+          <button class="key num"  data-k="N/A" disabled></button>
+          <button class="key num"  data-k="N/A" disabled></button>
+        </div>
+      </section>
+
+      <!-- Side: Recent ticks -->
+      <aside class="side">
+        <div class="h">Latest Ticks</div>
+        <div class="ledger" id="ledger"></div>
+        <div class="note">ENTER pauses. B = Buy, S = Sell.</div>
+      </aside>
+    </div>
+  </div>
+
+<script>
+/** ===== CONFIG ===== */
+const TOKEN_MINT = "7hx121hvRCsRLBXLACVd3pozNgGiJzNtPA8NKKGQpp4Z"; // your Solana mint (CA)
+const BIRDEYE_API_KEY = "REPLACE_WITH_YOUR_BIRDEYE_API_KEY";     // optional; fine to leave as-is
+const SOCIALS = { twitter: "https://twitter.com/YOUR_HANDLE" };
+
+// Links (BUY/SELL => Pump.fun while bonding)
+const LINKS = {
+  pumpfun: `https://pump.fun/${TOKEN_MINT}`,
+  jupBuy:  `https://pump.fun/${TOKEN_MINT}`,
+  jupSell: `https://pump.fun/${TOKEN_MINT}`,
+  raydium: `https://raydium.io/swap/?input=sol&output=${TOKEN_MINT}`
+};
+
+// Safe wiring (won’t crash if a button is missing)
+function setHref(id, url){ const el=document.getElementById(id); if(el && url) el.setAttribute('href', url); }
+setHref('twLink', SOCIALS.twitter);
+setHref('pfTop',  LINKS.pumpfun);
+setHref('jupBuyTop',  LINKS.jupBuy);   // ok if absent
+setHref('jupSellTop', LINKS.jupSell);  // ok if absent
+setHref('rayTop',     LINKS.raydium);  // ok if absent
+
+/** ===== APIs ===== */
+async function birdeyeOHLC({address,type='1m',from,to}){
+  const q = new URLSearchParams({address,type,time_from:String(from),time_to:String(to),currency:'usd'});
+  const res = await fetch(`https://public-api.birdeye.so/defi/ohlcv?${q}`, {headers:{'X-API-KEY':BIRDEYE_API_KEY}});
+  if(!res.ok) throw new Error('birdeye '+res.status);
+  return res.json();
+}
+async function dexscreenerToken(mint){
+  const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`,{cache:'no-cache'});
+  if(!r.ok) throw new Error('dexscreener '+r.status);
+  return r.json();
+}
+
+/** ===== State / Elements ===== */
+const lcd = document.getElementById('lcd'), ctx = lcd.getContext('2d');
+const lcdLeft = document.getElementById('lcdLeft'), lcdRight = document.getElementById('lcdRight');
+const legend = document.getElementById('legend'), pairPill = document.getElementById('pairPill');
+const pricePill = document.getElementById('pricePill'), trendPill = document.getElementById('trendPill');
+const ledger = document.getElementById('ledger');
+
+const state = {
+  tf:'1m', second:false, paused:false, unit:'USD',
+  name:'—', liq:0,
+  series:[] // [{t, closeUsd, closeSol, volUsd}]
+};
+
+/** ===== Layout ===== */
+function fit(){ const d=window.devicePixelRatio||1; lcd.width=lcd.clientWidth*d; lcd.height=lcd.clientHeight*d; ctx.setTransform(d,0,0,d,0,0); }
+addEventListener('resize', fit); fit();
+const fmt=(n,d=6)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmt2=(n,d=2)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+
+/** ===== Draw pump.fun-like line ===== */
+function draw(){
+  lcdLeft.textContent = `MODE:LINE  TF:${state.tf}  2ND:${state.second?'ON':'OFF'}`;
+  ctx.clearRect(0,0,lcd.width,lcd.height);
+  const pad=10, W=lcd.clientWidth, H=lcd.clientHeight;
+
+  if(state.series.length<2){ legend.textContent='Waiting for history…'; return; }
+  const ys = state.unit==='SOL'
+    ? state.series.map(p=>p.closeSol ?? (p.closeUsd && state.series[0].closeUsd ? p.closeUsd/state.series[0].closeUsd : null)).map(v=>v??0)
+    : state.series.map(p=>p.closeUsd);
+
+  const minY=Math.min(...ys), maxY=Math.max(...ys), spread=(maxY-minY)||1e-9;
+
+  // grid
+  ctx.globalAlpha=.2; ctx.strokeStyle='#8a8a8a'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad+(H-2*pad)*(i/4); ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();}
+  ctx.globalAlpha=1;
+
+  // line
+  ctx.lineWidth=2.4;
+  for(let i=1;i<ys.length;i++){
+    const x0=pad+(W-2*pad)*((i-1)/(ys.length-1));
+    const x1=pad+(W-2*pad)*(i/(ys.length-1));
+    const y0=H-pad-((ys[i-1]-minY)/spread)*(H-2*pad);
+    const y1=H-pad-((ys[i]-minY)/spread)*(H-2*pad);
+    const rising = ys[i]>=ys[i-1];
+    ctx.strokeStyle = rising
+      ? getComputedStyle(document.documentElement).getPropertyValue('--line-up').trim()
+      : getComputedStyle(document.documentElement).getPropertyValue('--line-down').trim();
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+  }
+
+  // header/pills
+  const last = state.series.at(-1);
+  const pLabel = state.unit==='SOL' && last.closeSol ? `${fmt(last.closeSol,6)} SOL` : `$${fmt2(last.closeUsd,6)}`;
+  pricePill.textContent = `Price: ${pLabel}`;
+  const first = state.series[0];
+  const base = state.unit==='SOL' && first.closeSol ? first.closeSol : first.closeUsd;
+  const cur  = state.unit==='SOL' && last.closeSol  ? last.closeSol  : last.closeUsd;
+  const deltaPct = base ? ((cur-base)/base)*100 : 0;
+  trendPill.textContent = `${deltaPct>=0?'▲ Up':'▼ Down'} ${fmt2(deltaPct,2)}%`;
+  legend.textContent = `${state.name} | Liq ≈ $${fmt2(state.liq||0,0)} | Points: ${state.series.length}`;
+  pairPill.textContent = `Pair: ${state.name}`;
+  lcdRight.textContent = `PX: ${pLabel} | Δ: ${deltaPct>=0?'+':''}${fmt2(deltaPct,2)}%`;
+}
+
+/** ===== Data ===== */
+const tfSec = {'1m':60,'5m':300,'15m':900};
+const unix = (t=Date.now()) => Math.floor(t/1000);
+
+async function loadHistory(){
+  if(BIRDEYE_API_KEY && !BIRDEYE_API_KEY.includes('REPLACE_WITH')){
+    try{
+      const to = unix(), from = to - 300*tfSec[state.tf];
+      const data = await birdeyeOHLC({address:TOKEN_MINT,type:state.tf,from,to});
+      const items = data?.data?.items || data?.data || data?.items || [];
+      if(items.length){
+        state.series = items.map(it=>({t:(it.time||it.unixTime||0)*1000, closeUsd:+it.c, closeSol:null, volUsd:+(it.vUsd||0)}));
+        return true;
+      }
+    }catch(e){}
+  }
+  // fallback via Dexscreener: seed around current price so the line appears immediately
+  try{
+    const ds = await dexscreenerToken(TOKEN_MINT);
+    const pairs = (ds?.pairs||[]).filter(p=>p.chainId==='solana');
+    if(pairs.length){
+      pairs.sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0));
+      const best = pairs[0];
+      const priceUsd = Number(best.priceUsd||0);
+      state.name = `${best.baseToken?.symbol||'TOKEN'}/${best.quoteToken?.symbol||'?'}`;
+      state.liq = best.liquidity?.usd||0;
+      const base = priceUsd || 0.0001;
+      const arr=[]; let v=base;
+      for(let i=0;i<120;i++){ v *= 1 + (Math.random()-0.5)*0.004; arr.push({t:Date.now()-((120-i)*tfSec[state.tf]*1000/4), closeUsd:v, closeSol:null, volUsd:0}); }
+      state.series = arr;
+      return true;
+    }
+  }catch(e){}
+  // final seed
+  const arr=[]; let v=0.0001; for(let i=0;i<120;i++){ v*=1+(Math.random()-0.5)*0.002; arr.push({t:Date.now()-((120-i)*1000), closeUsd:v, closeSol:null, volUsd:0}); }
+  state.series = arr; state.name='TOKEN/SOL'; state.liq=0; return true;
+}
+
+async function tick(){
+  if(state.paused) return;
+  try{
+    if(BIRDEYE_API_KEY && !BIRDEYE_API_KEY.includes('REPLACE_WITH')){
+      const to = unix(), from = to - 5*tfSec[state.tf];
+      const d = await birdeyeOHLC({address:TOKEN_MINT,type:state.tf,from,to});
+      const items = d?.data?.items || d?.data || d?.items || [];
+      if(items.length){
+        const last = items.at(-1);
+        state.series.push({t:(last.time||last.unixTime||0)*1000, closeUsd:+last.c, closeSol:null, volUsd:+(last.vUsd||0)});
+        if(state.series.length>600) state.series.shift();
+      }
+    } else {
+      const ds = await dexscreenerToken(TOKEN_MINT);
+      const pairs = (ds?.pairs||[]).filter(p=>p.chainId==='solana');
+      if(pairs.length){
+        pairs.sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0));
+        const best = pairs[0]; const priceUsd = Number(best.priceUsd||0);
+        state.name = `${best.baseToken?.symbol||'TOKEN'}/${best.quoteToken?.symbol||'?'}`;
+        state.liq = best.liquidity?.usd||0;
+        state.series.push({t:Date.now(), closeUsd:priceUsd||state.series.at(-1).closeUsd, closeSol:null, volUsd:+(best.volume?.h24||0)});
+        if(state.series.length>600) state.series.shift();
+
+        const row=document.createElement('div'); row.className='rowx';
+        row.innerHTML = `<div>Tick</div><div>USD $${fmt2(priceUsd||state.series.at(-1).closeUsd,6)}</div><div>${new Date().toLocaleTimeString()}</div>`;
+        ledger.prepend(row);
+      } else {
+        const last = state.series.at(-1)?.closeUsd ?? 0.0001;
+        const next = last * (1 + (Math.random()-0.5)*0.003);
+        state.series.push({t:Date.now(), closeUsd:next, closeSol:null, volUsd:0});
+        if(state.series.length>600) state.series.shift();
+      }
+    }
+  }catch(e){
+    const last = state.series.at(-1)?.closeUsd ?? 0.0001;
+    const next = last * (1 + (Math.random()-0.5)*0.0015);
+    state.series.push({t:Date.now(), closeUsd:next, closeSol:null, volUsd:0});
+    if(state.series.length>600) state.series.shift();
+  }
+  draw();
+}
+
+/** ===== Boot ===== */
+(async ()=>{
+  await loadHistory();
+  draw();
+  setInterval(tick, 6000);
+})();
+
+/** ===== Controls ===== */
+function setTF(tf){ state.tf=tf; legend.textContent='Loading…'; loadHistory().then(draw); }
+function setUnit(u){ state.unit=u; draw(); }
+function toggleSecond(){ state.second=!state.second; draw(); }
+function togglePause(){ state.paused=!state.paused; }
+
+document.getElementById('keys').addEventListener('click', e=>{
+  const k = e.target.closest('.key')?.dataset.k; if(!k) return;
+  switch(k){
+    case '2ND': toggleSecond(); break;
+    case 'CLEAR': state.series.length=0; loadHistory().then(draw); break;
+    case 'ENTER': togglePause(); break;
+    case 'BUY': window.open(LINKS.jupBuy,'_blank','noopener'); break;   // Pump.fun now
+    case 'SELL': window.open(LINKS.jupSell,'_blank','noopener'); break; // Pump.fun now
+    case 'TF1': setTF('1m'); break;
+    case 'TF5': setTF('5m'); break;
+    case 'TF15': setTF('15m'); break;
+    case 'USD': setUnit('USD'); break;
+    case 'SOL': setUnit('SOL'); break;
+  }
+});
+window.addEventListener('keydown', e=>{
+  if(e.key==='Enter') togglePause();
+  if(e.key.toLowerCase()==='b') window.open(LINKS.jupBuy,'_blank','noopener');
+  if(e.key.toLowerCase()==='s') window.open(LINKS.jupSell,'_blank','noopener');
+});
+</script>
+</body>
+</html>
